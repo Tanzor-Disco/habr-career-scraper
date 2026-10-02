@@ -13,6 +13,7 @@
 
 ## Структура проекта
 
+```text
 habr-parser/
 ├── .gitignore
 ├── database/
@@ -25,7 +26,7 @@ habr-parser/
 └── scraper/
     ├── __init__.py
     └── scraper.py
-
+```
 ## Установка
 
 Клонировать репозиторий:
@@ -95,16 +96,15 @@ SQLAlchemy используется в качестве ORM.
 
 Основные сущности:
 
-COMPANIES  1 ─────────── N  VACANCIES  N ─────────── 1  LOCATIONS
-                              │
-                              │ 1:N
-                              │
-                              ▼
-                        VACANCY_SKILLS
-                              │
-                              │ N:1
-                              ▼
-                           SKILLS
+### Основные сущности
+
+```mermaid
+flowchart LR
+    C[COMPANIES] -->|1:N| V[VACANCIES]
+    L[LOCATIONS] -->|1:N| V
+    V -->|1:N| VS[VACANCY_SKILLS]
+    S[SKILLS] -->|1:N| VS
+```
 
 ### Таблица companies
 
