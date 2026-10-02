@@ -1,8 +1,8 @@
 import asyncio
 import re
-import requests
 
 import aiohttp
+import requests
 from bs4 import BeautifulSoup, Tag
 
 HABR_CAREER_BASE_URL = "https://career.habr.com/vacancies?page="
@@ -14,23 +14,23 @@ class Vacancy:
         title: str,
         company: str,
         seniority: str | None,
-        work_type: str | None,
+        remote_allowed: bool,
         location: str | None,
         salary: int | None,
         skills: list[str],
-        vacancy_id:int
+        habr_id: int,
     ):
         self.title = title
         self.company = company
         self.seniority = seniority
-        self.work_type = work_type
+        self.remote_allowed = remote_allowed
         self.location = location
         self.salary = salary
         self.skills = skills
-        self.vacancy_id = vacancy_id
+        self.habr_id = habr_id
 
     def __str__(self):
-        return f"(title: {self.title}, company: {self.company}, seniority: {self.seniority}, work_type: {self.work_type}, location:{self.location}, salary: {self.salary}, skills:{self.skills}, vacancy_id:{self.vacancy_id})"
+        return f"(title: {self.title}, company: {self.company}, seniority: {self.seniority}, remote_allowed: {self.remote_allowed}, location:{self.location}, salary: {self.salary}, skills:{self.skills}, habr_id:{self.habr_id})"
 
 
 def scrape_vacancy(vacancy: Tag) -> Vacancy:
@@ -46,9 +46,13 @@ def scrape_vacancy(vacancy: Tag) -> Vacancy:
     if seniority is not None:
         seniority = seniority.get_text()
 
-    work_type = vacancy.select_one('.vacancy-meta .basic-chip:has(use[xlink\\:href*="#format"]) .chip-with-icon__text')
-    if work_type is not None:
-        work_type = work_type.get_text()
+    remote_allowed = vacancy.select_one(
+        '.vacancy-meta .basic-chip:has(use[xlink\\:href*="#format"]) .chip-with-icon__text'
+    )
+    if remote_allowed is not None:
+        remote_allowed = True
+    else:
+        remote_allowed = False
 
     location = vacancy.select_one(
         '.vacancy-meta .basic-chip:has(use[xlink\\:href*="#placemark"]) .chip-with-icon__text'
@@ -78,11 +82,11 @@ def scrape_vacancy(vacancy: Tag) -> Vacancy:
     vacancy_link = vacancy.select_one("a.vacancy-card__backdrop-link")
     assert vacancy_link is not None
 
-    vacancy_id = vacancy_link.get("href")
-    assert vacancy_id is not None
-    vacancy_id = int(str(vacancy_id).split("/")[-1])
-    
-    return Vacancy(title, company, seniority, work_type, location, salary, skills,vacancy_id)
+    habr_id = vacancy_link.get("href")
+    assert habr_id is not None
+    habr_id = int(str(habr_id).split("/")[-1])
+
+    return Vacancy(title, company, seniority, remote_allowed, location, salary, skills, habr_id)
 
 
 def scrape_page_posts(page: str) -> list[Vacancy]:
@@ -112,7 +116,7 @@ async def async_get_page(session: aiohttp.ClientSession, url: str) -> str:
 async def async_get_pages(num_pages: int) -> list[str]:
     async with aiohttp.ClientSession() as session:
         pages = await asyncio.gather(
-            *[async_get_page(session, HABR_CAREER_BASE_URL + str(curr_page+1)) for curr_page in range(num_pages)]
+            *[async_get_page(session, HABR_CAREER_BASE_URL + str(curr_page + 1)) for curr_page in range(num_pages)]
         )
     return pages
 
@@ -123,13 +127,16 @@ async def get_and_scrape() -> list[Vacancy]:
     vacancies = scrape_pages(pages)
     return vacancies
 
-def test_sync_get_page(url:str) -> str:
+
+def test_sync_get_page(url: str) -> str:
     return requests.get(url).text
-    
-def test_sync_get_and_scrape(num_pages:int):
-    pages = [test_sync_get_page(HABR_CAREER_BASE_URL + str(curr_page+1)) for curr_page in range(num_pages)]
+
+
+def test_sync_get_and_scrape(num_pages: int):
+    pages = [test_sync_get_page(HABR_CAREER_BASE_URL + str(curr_page + 1)) for curr_page in range(num_pages)]
     vacancies = scrape_pages(pages)
     return vacancies
+
 
 async def test():
     vacancies = await get_and_scrape()
